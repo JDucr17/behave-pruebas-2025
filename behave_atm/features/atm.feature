@@ -66,3 +66,21 @@ Feature: ATM basic operations
     Given an account with initial balance of 5000
     When the user attempts to change PIN from "0000" to "5678"
     Then an invalid PIN error should be displayed
+
+  @pin_lock
+  Scenario: Account gets locked after three invalid PIN attempts
+    Given an account with initial balance of 5000
+    When the user enters incorrect PIN "0000"
+    And the user enters incorrect PIN "1111"
+    And the user enters incorrect PIN "2222"
+    Then the account should be locked
+    And an "Account locked due to multiple failed attempts" error should be raised
+
+  @withdrawal_limit
+  Scenario: Exceeding the daily withdrawal limit
+    Given an account with initial balance of 10000
+    And a daily withdrawal limit of 3000
+    When the user withdraws 2000
+    And the user attempts to withdraw 2000 again
+    Then a "Daily withdrawal limit exceeded" error should be raised
+    And the displayed balance should remain 8000

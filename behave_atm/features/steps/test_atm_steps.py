@@ -1,5 +1,6 @@
 from behave import given, when, then
-from atm import ATM
+from hamcrest import assert_that, equal_to
+from atm import ATM, AccountLockedError, InvalidPINError
 
 
 @given('an account with initial balance of {amount:d}')
@@ -12,6 +13,11 @@ def step_given_initial_balance(context, amount):
 @given('a destination account with initial balance of {amount:d}')
 def step_given_destination_account(context, amount):
     context.destination_atm = ATM(amount)
+
+
+@given('a daily withdrawal limit of {limit:d}')
+def step_given_limit(context, limit):
+    context.atm.daily_limit = limit
 
 
 @when('the user checks the balance')
@@ -85,6 +91,22 @@ def step_when_attempt_change_pin(context, old_pin, new_pin):
         context.error = str(e)
 
 
+@when('the user enters incorrect PIN "{pin}"')
+def step_when_incorrect_pin(context, pin):
+    try:
+        context.atm.change_pin(pin, "5678")
+    except (InvalidPINError, AccountLockedError) as e:
+        context.last_error = str(e)
+
+
+@when('the user attempts to withdraw {amount:d} again')
+def step_when_withdraw_again(context, amount):
+    try:
+        context.atm.withdraw(amount)
+    except Exception as e:
+        context.last_error = str(e)
+
+
 @then('the displayed balance should be {expected:d}')
 def step_then_balance(context, expected):
     assert context.output == expected, f"Expected balance {expected}, but got {context.output}"
@@ -116,3 +138,22 @@ def step_then_pin_change_successful(context):
 def step_then_invalid_pin_error(context):
     assert context.error is not None, "Expected an error but none occurred"
     assert 'pin' in context.error.lower(), "Error message does not mention PIN"
+
+
+@then('the account should be locked')
+def step_then_locked(context):
+    assert_that(context.atm.locked, equal_to(True))
+
+
+@then('an "Account locked due to multiple failed attempts" error should be raised')
+def step_then_error_message(context):
+    assert_that(context.last_error, equal_to("Account locked due to multiple failed attempts"))
+
+
+@then('a "Daily withdrawal limit exceeded" error should be raised')
+def step_then_error(context):
+    assert_that(context.last_error, equal_to("Daily withdrawal limit exceeded"))
+
+@then('the displayed balance should remain {balance:d}')
+def step_then_balance_remain(context, balance):
+    assert_that(context.atm.balance, equal_to(balance))
